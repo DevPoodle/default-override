@@ -33,16 +33,9 @@ func update_settings() -> void:
 		ProjectSettings.add_property_info(property_info)
 	verbose = ProjectSettings.get_setting(VERBOSE_SETTING_PATH, false)
 
-func _enable_plugin() -> void:
-	update_settings()
-
-func _disable_plugin() -> void:
-	if ProjectSettings.has_setting(DICT_SETTING_PATH):
-		ProjectSettings.set_setting(DICT_SETTING_PATH, null)
-	if ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
-		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, null)
-
 func _enter_tree() -> void:
+	update_settings()
+	
 	find_scene_tree_recursively(EditorInterface.get_base_control())
 	for child: Node in scene_tree_dock.get_children():
 		if child.get_class() == "CreateDialog":
@@ -55,6 +48,12 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	create_dialog.disconnect("create", new_node_created)
 	scene_tree_dock.disconnect("node_created", node_instantiated)
+
+func _disable_plugin() -> void:
+	if ProjectSettings.has_setting(DICT_SETTING_PATH):
+		ProjectSettings.set_setting(DICT_SETTING_PATH, null)
+	if ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
+		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, null)
 
 #endregion
 #region - Override properties when new nodes are created
