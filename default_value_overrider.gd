@@ -73,7 +73,10 @@ func node_instantiated(node: Node) -> void:
 	if node_is_new:
 		update_settings()
 		for path: NodePath in overriden_properties:
-			if node.get_class() == path.get_name(0):
+			# Node is base class:
+			# if node.get_class() == path.get_name(0):
+			# Node is base class or inherited class:
+			if node.is_class(path.get_name(0)):
 				var key := path as String
 				if verbose:
 					print("Default Value Set: " + key + " = " + str(overriden_properties[key]))
