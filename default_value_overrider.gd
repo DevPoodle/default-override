@@ -10,10 +10,35 @@ var overriden_properties: Dictionary[String, Variant]
 var apply_to_inherited := true
 var verbose := false
 
-#region - Initialize and deinitialize plugin and plugin settings
+#region - Recursively find necessary nodes in editor
 
 var scene_tree_dock: VBoxContainer
 var create_dialog: ConfirmationDialog
+
+## Finds the scene tree. There is no dedicated get_scene_tree function, and I
+## don't want to include an absolute path that is likely to change in updates,
+## so this is the best we can do for now.
+func find_scene_tree_recursively(node: Node) -> void:
+	if scene_tree_dock:
+		return
+	for child: Node in node.get_children():
+		find_scene_tree_recursively(child)
+		if child.get_class() == "SceneTreeEditor":
+			if child.get_parent().get_class() == "SceneTreeDock":
+				scene_tree_dock = child.get_parent()
+
+## Finds the editor property that edits the property described by path.
+func find_property_recursively(node: Node, path: String) -> EditorProperty:
+	for child: Node in node.get_children():
+		if child is EditorProperty and child.get_edited_property() == path:
+			return child
+		var property := find_property_recursively(child, path)
+		if property:
+			return property
+	return null
+
+#endregion
+#region - Initialize and deinitialize plugin and plugin settings
 
 func update_settings() -> void:
 	if !ProjectSettings.has_setting(DICT_SETTING_PATH):
@@ -163,30 +188,5 @@ func set_new_default_value(id: int) -> void:
 	overriden_properties[path] = default
 	if verbose:
 		print("New Default Value: " + path + " = "+ str(default))
-
-#endregion
-#region - Recursively find necessary nodes in editor
-
-## Finds the scene tree. There is no dedicated get_scene_tree function, and I
-## don't want to include an absolute path that is likely to change in updates,
-## so this is the best we can do for now.
-func find_scene_tree_recursively(node: Node) -> void:
-	if scene_tree_dock:
-		return
-	for child: Node in node.get_children():
-		find_scene_tree_recursively(child)
-		if child.get_class() == "SceneTreeEditor":
-			if child.get_parent().get_class() == "SceneTreeDock":
-				scene_tree_dock = child.get_parent()
-
-## Finds the editor property that edits the property described by path.
-func find_property_recursively(node: Node, path: String) -> EditorProperty:
-	for child: Node in node.get_children():
-		if child is EditorProperty and child.get_edited_property() == path:
-			return child
-		var property := find_property_recursively(child, path)
-		if property:
-			return property
-	return null
 
 #endregion
