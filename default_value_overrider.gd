@@ -2,10 +2,12 @@
 extends EditorPlugin
 
 const DICT_SETTING_PATH := "plugins/editor/default_value_overrider/overriden_properties"
+const INHERITED_SETTING_PATH := "plugins/editor/default_value_overrider/apply_to_inherited_classes"
 const VERBOSE_SETTING_PATH := "plugins/editor/default_value_overrider/verbose_output"
 
 var default_dict: Dictionary[String, Variant] = { "ExampleNode:example_property": 0.0 }
 var overriden_properties: Dictionary[String, Variant]
+var apply_to_inherited := true
 var verbose := false
 
 #region - Initialize and deinitialize plugin and plugin settings
@@ -25,9 +27,19 @@ func update_settings() -> void:
 		ProjectSettings.set_as_basic(DICT_SETTING_PATH, true)
 	overriden_properties = ProjectSettings.get_setting(DICT_SETTING_PATH, default_dict)
 	
+	if !ProjectSettings.has_setting(INHERITED_SETTING_PATH):
+		ProjectSettings.set_setting(INHERITED_SETTING_PATH, true)
+		ProjectSettings.set_initial_value(INHERITED_SETTING_PATH, true)
+		var property_info := {
+			"name": INHERITED_SETTING_PATH, "type": TYPE_BOOL
+		}
+		ProjectSettings.add_property_info(property_info)
+		ProjectSettings.set_as_basic(INHERITED_SETTING_PATH, true)
+	apply_to_inherited = ProjectSettings.get_setting(INHERITED_SETTING_PATH, true)
+	
 	if !ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
-		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, verbose)
-		ProjectSettings.set_initial_value(VERBOSE_SETTING_PATH, verbose)
+		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, false)
+		ProjectSettings.set_initial_value(VERBOSE_SETTING_PATH,false)
 		var property_info := {
 			"name": VERBOSE_SETTING_PATH, "type": TYPE_BOOL
 		}
@@ -52,10 +64,10 @@ func _exit_tree() -> void:
 	scene_tree_dock.disconnect("node_created", node_instantiated)
 
 func _disable_plugin() -> void:
-	if ProjectSettings.has_setting(DICT_SETTING_PATH):
-		ProjectSettings.set_setting(DICT_SETTING_PATH, null)
-	if ProjectSettings.has_setting(VERBOSE_SETTING_PATH):
-		ProjectSettings.set_setting(VERBOSE_SETTING_PATH, null)
+	for setting: String in PackedStringArray([
+	DICT_SETTING_PATH, INHERITED_SETTING_PATH, VERBOSE_SETTING_PATH]):
+		if ProjectSettings.has_setting(setting):
+			ProjectSettings.set_setting(setting, null)
 
 #endregion
 #region - Override properties when new nodes are created
@@ -73,10 +85,10 @@ func node_instantiated(node: Node) -> void:
 	if node_is_new:
 		update_settings()
 		for path: NodePath in overriden_properties:
-			# Node is base class:
-			# if node.get_class() == path.get_name(0):
-			# Node is base class or inherited class:
-			if node.is_class(path.get_name(0)):
+			var set_default := node.get_class() == path.get_name(0)
+			if apply_to_inherited:
+				set_default = node.is_class(path.get_name(0))
+			if set_default:
 				var key := path as String
 				if verbose:
 					print("Default Value Set: " + key + " = " + str(overriden_properties[key]))
