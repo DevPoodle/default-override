@@ -170,7 +170,7 @@ func try_to_setup_popup() -> void:
 			popup.remove_item(popup.get_item_index(POPUP_ITEM_ID))
 	
 	popup = new_popup
-	popup.add_item("Set As Default Value", POPUP_ITEM_ID)
+	popup.add_icon_item(preload("icon.svg"), "Set As Default Value", POPUP_ITEM_ID)
 	if !popup.id_pressed.is_connected(set_new_default_value):
 		popup.id_pressed.connect(set_new_default_value)
 	if !popup.menu_changed.is_connected(popup_changed):

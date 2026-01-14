@@ -1,4 +1,9 @@
 # Default Override
+
+<p align="center">
+	<img src="icon.svg" width="256">
+</p>
+
 This is a [Godot](https://godotengine.org/) 4.5 plugin that lets you override
 the default values of node properties.
 
