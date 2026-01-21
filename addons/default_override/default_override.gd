@@ -87,6 +87,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	create_dialog.disconnect("create", new_node_created)
 	scene_tree_dock.disconnect("node_created", node_instantiated)
+	ProjectSettings.save()
 
 func _disable_plugin() -> void:
 	for setting: String in PackedStringArray([
