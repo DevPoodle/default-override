@@ -58,6 +58,5 @@ base classes or also to inherited ones.
 
 ## YouTube
 This plugin was created by me, [DevPoodle](https://www.youtube.com/@devpoodle)!
-I'll probably have a video out about it soon, with a more thorough explanation
-on how the plugin works and the choices I took while I making it. So keep an eye
-out for that. Thanks!
+I've uploaded a YT video explaining its use and development here:
+https://youtu.be/VRgEVQeQC-o?si=98OfjqFTxbOttyVk.
