@@ -104,15 +104,41 @@ var node_is_new := false
 func new_node_created() -> void:
 	node_is_new = true
 
+## Returns whether `child_script` inherits the given `base_class_name`.
+## Only checks for custom global classes (aka `class_name`).
+func inherits_global_class(child_script: Script, base_class_name: StringName) -> bool:
+	if child_script.get_global_name() == base_class_name:
+		return true
+	
+	var base_script := child_script.get_base_script()
+	if not base_script:
+		return false
+	
+	return inherits_global_class(base_script, base_class_name)
+
 func override_node_properties(node: Node, overriden_properties_dict: Dictionary, apply_to_inherited: bool) -> void:
+	var node_script: Script = node.get_script()
+	
 	for path: NodePath in overriden_properties_dict:
-		var set_default := node.get_class() == path.get_name(0)
-		if apply_to_inherited:
-			set_default = node.is_class(path.get_name(0))
+		var owner_name := path.get_name(0)
+		var set_default := false
+		
+		if ClassDB.class_exists(owner_name):
+			set_default = node.get_class() == owner_name
+			
+			if apply_to_inherited:
+				set_default = node.is_class(owner_name)
+		elif node_script:
+			set_default = node_script.get_global_name() == owner_name
+			
+			if apply_to_inherited:
+				set_default = inherits_global_class(node_script, owner_name)
+		
 		if set_default:
 			var key := path as String
 			if verbose:
 				print("Default Value Set: " + key + " = " + str(overriden_properties_dict[key]))
+			
 			node.set_indexed(path.slice(1) as String, overriden_properties_dict[key])
 
 ## Connected to scene_tree_dock's 'node_created' signal.
@@ -170,7 +196,7 @@ func try_to_setup_popup() -> void:
 	
 	editing_popup = true
 	if popup:
-		for set_default_value: Callable in [set_new_non_inherited_default_value, set_new_inherited_default_value]:
+		for set_default_value: Callable in [add_new_non_inherited_default_value, add_new_inherited_default_value]:
 			if popup.id_pressed.is_connected(set_default_value):
 				popup.id_pressed.disconnect(set_default_value)
 		
@@ -179,10 +205,26 @@ func try_to_setup_popup() -> void:
 				popup.remove_item(popup.get_item_index(popup_item_id))
 	
 	popup = new_popup
+	
+	var edited_object := editor_property.get_edited_object()
+	var edited_property := editor_property.get_edited_property()
+	var is_built_in := false
+	
+	# Check whether the edited property is built-in.
+	for property: Dictionary in ClassDB.class_get_property_list(edited_object.get_class()):
+		if property["name"] == edited_property:
+			is_built_in = true
+	
+	# Skip adding buttons for non–built-in properties on nodes without a global name (aka `class_name`).
+	var edited_object_script: Script = edited_object.get_script()
+	var edited_object_global_name := edited_object_script.get_global_name() if edited_object_script else ""
+	if not is_built_in and not edited_object_global_name:
+		return
+	
 	popup.add_icon_item(preload("icon.svg"), "Set As Default Value", NON_INHERITED_POPUP_ITEM_ID)
 	popup.add_icon_item(preload("icon.svg"), "Set As Default Value (Inherited)", INHERITED_POPUP_ITEM_ID)
 	
-	for set_default_value: Callable in [set_new_non_inherited_default_value, set_new_inherited_default_value]:
+	for set_default_value: Callable in [add_new_non_inherited_default_value, add_new_inherited_default_value]:
 		if not popup.id_pressed.is_connected(set_default_value):
 			popup.id_pressed.connect(set_default_value)
 	
@@ -193,30 +235,41 @@ func try_to_setup_popup() -> void:
 
 # Uses a Callable to work around an issue where passing property dictionaries directly
 # causes the reference to be lost after calling update_settings().
-func get_new_default_value(id: int, ITEM_ID: int, apply_value_callable: Callable) -> void:
+func add_new_default_value(id: int, ITEM_ID: int, add_value_callable: Callable) -> void:
 	if id != ITEM_ID:
 		return
 	
-	var property := editor_property.get_edited_property()
-	var path := editor_property.get_edited_object().get_class() + ":" + property
-	var default := editor_property.get_edited_object().get(property)
+	var edited_property := editor_property.get_edited_property()
+	var edited_object := editor_property.get_edited_object()
+	
+	# The name registered with the property.
+	var owner_name := editor_property.get_edited_object().get_class()
+	
+	# If the object has a global name (aka `class_name`), use it instead.
+	var edited_object_script: Script = edited_object.get_script()
+	var edited_object_global_name := edited_object_script.get_global_name() if edited_object_script else ""
+	if edited_object_global_name:
+		owner_name = edited_object_global_name
+	
+	var path := owner_name + ":" + edited_property
+	var default := editor_property.get_edited_object().get(edited_property)
 	
 	update_settings()
-	apply_value_callable.call(path, default)
+	add_value_callable.call(path, default)
 	
 	if verbose:
 		print("New Default Value: " + path + " = "+ str(default))
 
 # Uses separate method because Godot treats a Callable with different bound parameters as identical,
 # preventing connecting them to the same signal twice.
-func set_new_non_inherited_default_value(id: int) -> void:
-	get_new_default_value(id, NON_INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
+func add_new_non_inherited_default_value(id: int) -> void:
+	add_new_default_value(id, NON_INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
 			non_inherited_overriden_properties[path] = default
 			inherited_overriden_properties.erase(path)
 	)
 
-func set_new_inherited_default_value(id: int) -> void:
-	get_new_default_value(id, INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
+func add_new_inherited_default_value(id: int) -> void:
+	add_new_default_value(id, INHERITED_POPUP_ITEM_ID, func(path: String, default: Variant):
 			inherited_overriden_properties[path] = default
 			non_inherited_overriden_properties.erase(path)
 	)
