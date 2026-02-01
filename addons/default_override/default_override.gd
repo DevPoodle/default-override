@@ -12,8 +12,9 @@ var verbose := false
 
 #region - Recursively find necessary nodes in editor
 
-var scene_tree_dock: VBoxContainer
+var scene_tree_dock: Node
 var create_dialog: ConfirmationDialog
+var version: int = Engine.get_version_info()["minor"]
 
 ## Finds the scene tree. There is no dedicated get_scene_tree function, and I
 ## don't want to include an absolute path that is likely to change in updates,
@@ -24,8 +25,9 @@ func find_scene_tree_recursively(node: Node) -> void:
 	for child: Node in node.get_children():
 		find_scene_tree_recursively(child)
 		if child.get_class() == "SceneTreeEditor":
-			if child.get_parent().get_class() == "SceneTreeDock":
-				scene_tree_dock = child.get_parent()
+			var dock := child.get_node("../../../" if version > 5 else "../")
+			if dock.get_class() == "SceneTreeDock":
+				scene_tree_dock = dock
 
 ## Finds the editor property that edits the property described by path.
 func find_property_recursively(node: Node, path: String) -> EditorProperty:

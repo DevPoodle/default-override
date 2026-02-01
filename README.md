@@ -4,8 +4,8 @@
 	<img src="icon.svg" width="256">
 </p>
 
-This is a [Godot 4.5](https://godotengine.org/) plugin that lets you override
-the default values of node properties.
+This is a [Godot 4](https://godotengine.org/) plugin that lets you override the
+default values of node properties. Works up to most recent release of Godot 4.6.
 
 ## How to Use
 In a node's inspector, change the given property to the new default value you
@@ -53,8 +53,6 @@ be substantially more difficult than it is for scenes, but I'd need to look into
 it further.
 - Add separate Editor Settings options. These would be applied first, and then
 the options in Project Settings would be added on top.
-- Add settings to specify whether each individual override should apply only to
-base classes or also to inherited ones.
 
 ## YouTube
 This plugin was created by me, [DevPoodle](https://www.youtube.com/@devpoodle)!
