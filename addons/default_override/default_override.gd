@@ -10,36 +10,10 @@ var non_inherited_overriden_properties: Dictionary[String, Variant]
 var inherited_overriden_properties: Dictionary[String, Variant]
 var verbose := false
 
-#region - Recursively find necessary nodes in editor
-
 var scene_tree_dock: Node
 var create_dialog: ConfirmationDialog
 var version: int = Engine.get_version_info()["minor"]
 
-## Finds the scene tree. There is no dedicated get_scene_tree function, and I
-## don't want to include an absolute path that is likely to change in updates,
-## so this is the best we can do for now.
-func find_scene_tree_recursively(node: Node) -> void:
-	if scene_tree_dock:
-		return
-	for child: Node in node.get_children():
-		find_scene_tree_recursively(child)
-		if child.get_class() == "SceneTreeEditor":
-			var dock := child.get_node("../../../" if version > 5 else "../")
-			if dock.get_class() == "SceneTreeDock":
-				scene_tree_dock = dock
-
-## Finds the editor property that edits the property described by path.
-func find_property_recursively(node: Node, path: String) -> EditorProperty:
-	for child: Node in node.get_children():
-		if child is EditorProperty and child.get_edited_property() == path:
-			return child
-		var property := find_property_recursively(child, path)
-		if property:
-			return property
-	return null
-
-#endregion
 #region - Initialize and deinitialize plugin and plugin settings
 
 func setup_dict_setting(path: String) -> Dictionary[String, Variant]:
@@ -75,11 +49,9 @@ func update_settings() -> void:
 func _enter_tree() -> void:
 	update_settings()
 	
-	find_scene_tree_recursively(EditorInterface.get_base_control())
-	for child: Node in scene_tree_dock.get_children():
-		if child.get_class() == "CreateDialog":
-			create_dialog = child
-			break
+	scene_tree_dock = EditorInterface.get_base_control().find_children("*", "SceneTreeDock", true, false)[0]
+	create_dialog = scene_tree_dock.find_children("*", "CreateDialog", false, false)[0]
+	
 	create_dialog.connect("create", new_node_created)
 	scene_tree_dock.connect("node_created", node_instantiated, ConnectFlags.CONNECT_DEFERRED)
 	EditorInterface.get_inspector().property_selected.connect(property_selected)
@@ -165,7 +137,11 @@ var editing_popup := false ## Makes sure we don't call popup_changed recursively
 
 ## Connected to the inspector's 'property_selected' signal.
 func property_selected(property: String) -> void:
-	editor_property = find_property_recursively(EditorInterface.get_inspector(), property)
+	var properties := EditorInterface.get_inspector().find_children("*", "EditorProperty", true, false)
+	for child: EditorProperty in properties:
+		if child.get_edited_property() == property:
+			editor_property = child
+			break
 	try_to_setup_popup()
 
 ## Connected to editor_property's 'child_entered_tree' signal.
